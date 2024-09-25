@@ -121,6 +121,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             '/cpugov [governor] - Configure CPU governor\n'
             '/ufw_allow <port> - Allow port through UFW\n'
             '/ufw_deny <port> - Deny port through UFW\n'
+            '/ufw_status - Check UFW status\n'
+            '/vm_status <vm_name> - Get VM status\n'
+            '/vm_start <vm_name> - Start a VM\n'
+            '/vm_stop <vm_name> - Stop a VM\n'
+            '/list_vms - List all VMs\n'
         )
     else:
         text = (
@@ -132,174 +137,95 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             '/cpugov [governor] - Configure CPU governor\n'
             '/ufw_allow <port> - Allow port through UFW\n'
             '/ufw_deny <port> - Deny port through UFW\n'
+            '/ufw_status - Check UFW status\n'
+            '/vm_status <vm_name> - Get VM status\n'
+            '/vm_start <vm_name> - Start a VM\n'
+            '/vm_stop <vm_name> - Stop a VM\n'
+            '/list_vms - List all VMs\n'
         )
     await update.message.reply_text(text)
     logger.debug(f'Sent help information to user ID {user.id}.')
 
-async def ensite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# VM Management Commands
+async def vm_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /ensite command.')
+    logger.info(f'User @{user.username} (ID: {user.id}) issued /vm_status command.')
     if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /ensite by user ID {user.id}.')
+        logger.warning(f'Unauthorized access attempt to /vm_status by user ID {user.id}.')
         return
     if not context.args:
-        await update.message.reply_text('Usage: /ensite <site_name>')
+        await update.message.reply_text('Usage: /vm_status <vm_name>')
         return
-    site_name = context.args[0]
+    vm_name = context.args[0]
     try:
-        subprocess.check_output(['nginx_ensite', site_name])
-        subprocess.check_output(['systemctl', 'reload', 'nginx'])
-        await update.message.reply_text(f'Site {site_name} enabled.')
-        await log_and_notify_admin(update, context, f'Enabled site {site_name}')
-        logger.debug(f'Successfully enabled site {site_name} for user ID {user.id}.')
+        output = subprocess.check_output(['virsh', 'dominfo', vm_name]).decode()
+        await update.message.reply_text(f'VM Status for {vm_name}:\n{output}')
+        await log_and_notify_admin(update, context, f'Checked status of VM {vm_name}')
+        logger.debug(f'Checked status of VM {vm_name} for user ID {user.id}.')
     except subprocess.CalledProcessError as e:
         error_output = e.output.decode()
-        await update.message.reply_text(f'Error enabling site: {error_output}')
-        await log_and_notify_admin(update, context, f'Error enabling site {site_name}: {error_output}')
-        logger.error(f'Error enabling site {site_name} for user ID {user.id}: {error_output}')
+        await update.message.reply_text(f'Error checking VM status: {error_output}')
+        await log_and_notify_admin(update, context, f'Error checking VM status for {vm_name}: {error_output}')
+        logger.error(f'Error checking VM status for user ID {user.id}: {error_output}')
 
-async def dissite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def vm_start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /dissite command.')
+    logger.info(f'User @{user.username} (ID: {user.id}) issued /vm_start command.')
     if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /dissite by user ID {user.id}.')
+        logger.warning(f'Unauthorized access attempt to /vm_start by user ID {user.id}.')
         return
     if not context.args:
-        await update.message.reply_text('Usage: /dissite <site_name>')
+        await update.message.reply_text('Usage: /vm_start <vm_name>')
         return
-    site_name = context.args[0]
+    vm_name = context.args[0]
     try:
-        subprocess.check_output(['nginx_dissite', site_name])
-        subprocess.check_output(['systemctl', 'reload', 'nginx'])
-        await update.message.reply_text(f'Site {site_name} disabled.')
-        await log_and_notify_admin(update, context, f'Disabled site {site_name}')
-        logger.debug(f'Successfully disabled site {site_name} for user ID {user.id}.')
+        subprocess.check_output(['virsh', 'start', vm_name])
+        await update.message.reply_text(f'VM {vm_name} started.')
+        await log_and_notify_admin(update, context, f'Started VM {vm_name}')
+        logger.debug(f'Started VM {vm_name} for user ID {user.id}.')
     except subprocess.CalledProcessError as e:
         error_output = e.output.decode()
-        await update.message.reply_text(f'Error disabling site: {error_output}')
-        await log_and_notify_admin(update, context, f'Error disabling site {site_name}: {error_output}')
-        logger.error(f'Error disabling site {site_name} for user ID {user.id}: {error_output}')
+        await update.message.reply_text(f'Error starting VM: {error_output}')
+        await log_and_notify_admin(update, context, f'Error starting VM {vm_name}: {error_output}')
+        logger.error(f'Error starting VM {vm_name} for user ID {user.id}: {error_output}')
 
-async def cpugov_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def vm_stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /cpugov command.')
+    logger.info(f'User @{user.username} (ID: {user.id}) issued /vm_stop command.')
     if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /cpugov by user ID {user.id}.')
-        return
-    try:
-        if context.args:
-            governor = context.args[0]
-            output = subprocess.check_output(['bash', '-c', f'./cpugov.sh {governor}']).decode()
-            await update.message.reply_text(f'CPU Governor set to {governor}.\n{output}')
-            await log_and_notify_admin(update, context, f'Set CPU governor to {governor}')
-            logger.debug(f'Successfully set CPU governor to {governor} for user ID {user.id}.')
-        else:
-            output = subprocess.check_output(['bash', '-c', './cpugov.sh']).decode()
-            await update.message.reply_text(f'Current CPU Governor:\n{output}')
-            await log_and_notify_admin(update, context, 'Checked CPU governor')
-            logger.debug(f'Checked CPU governor for user ID {user.id}.')
-    except subprocess.CalledProcessError as e:
-        error_output = e.output.decode()
-        await update.message.reply_text(f'Error executing cpugov script: {error_output}')
-        await log_and_notify_admin(update, context, f'Error executing cpugov script: {error_output}')
-        logger.error(f'Error executing cpugov script for user ID {user.id}: {error_output}')
-
-async def ufw_allow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /ufw_allow command.')
-    if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /ufw_allow by user ID {user.id}.')
+        logger.warning(f'Unauthorized access attempt to /vm_stop by user ID {user.id}.')
         return
     if not context.args:
-        await update.message.reply_text('Usage: /ufw_allow <port>')
+        await update.message.reply_text('Usage: /vm_stop <vm_name>')
         return
-    port = context.args[0]
+    vm_name = context.args[0]
     try:
-        subprocess.check_output(['ufw', 'allow', port])
-        await update.message.reply_text(f'Port {port} allowed through UFW.')
-        await log_and_notify_admin(update, context, f'Allowed port {port} through UFW')
-        logger.debug(f'Allowed port {port} through UFW for user ID {user.id}.')
+        subprocess.check_output(['virsh', 'shutdown', vm_name])
+        await update.message.reply_text(f'VM {vm_name} stopped.')
+        await log_and_notify_admin(update, context, f'Stopped VM {vm_name}')
+        logger.debug(f'Stopped VM {vm_name} for user ID {user.id}.')
     except subprocess.CalledProcessError as e:
         error_output = e.output.decode()
-        await update.message.reply_text(f'Error allowing port: {error_output}')
-        await log_and_notify_admin(update, context, f'Error allowing port {port}: {error_output}')
-        logger.error(f'Error allowing port {port} for user ID {user.id}: {error_output}')
+        await update.message.reply_text(f'Error stopping VM: {error_output}')
+        await log_and_notify_admin(update, context, f'Error stopping VM {vm_name}: {error_output}')
+        logger.error(f'Error stopping VM {vm_name} for user ID {user.id}: {error_output}')
 
-async def ufw_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def list_vms_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /ufw_status command.')
+    logger.info(f'User @{user.username} (ID: {user.id}) issued /list_vms command.')
     if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /ufw_status by user ID {user.id}.')
+        logger.warning(f'Unauthorized access attempt to /list_vms by user ID {user.id}.')
         return
     try:
-        output = subprocess.check_output(['ufw', 'status']).decode()
-        await update.message.reply_text(f'UFW Status: {output}')
-        await log_and_notify_admin(update, context, f'Sent UFW Status')
-        logger.debug(f'Sent UFW Status user ID {user.id}.')
+        output = subprocess.check_output(['virsh', 'list', '--all']).decode()
+        await update.message.reply_text(f'List of VMs:\n{output}')
+        await log_and_notify_admin(update, context, 'Listed all VMs')
+        logger.debug(f'Listed all VMs for user ID {user.id}.')
     except subprocess.CalledProcessError as e:
         error_output = e.output.decode()
-        await update.message.reply_text(f'Error showing UFW Status: {error_output}')
-        await log_and_notify_admin(update, context, f'Error showing UFW Status: {error_output}')
-        logger.error(f'Error Sending UFW Status user ID {user.id}: {error_output}')
-
-async def ufw_deny_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /ufw_deny command.')
-    if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /ufw_deny by user ID {user.id}.')
-        return
-    if not context.args:
-        await update.message.reply_text('Usage: /ufw_deny <port>')
-        return
-    port = context.args[0]
-    try:
-        subprocess.check_output(['ufw', 'deny', port])
-        await update.message.reply_text(f'Port {port} denied through UFW.')
-        await log_and_notify_admin(update, context, f'Denied port {port} through UFW')
-        logger.debug(f'Denied port {port} through UFW for user ID {user.id}.')
-    except subprocess.CalledProcessError as e:
-        error_output = e.output.decode()
-        await update.message.reply_text(f'Error denying port: {error_output}')
-        await log_and_notify_admin(update, context, f'Error denying port {port}: {error_output}')
-        logger.error(f'Error denying port {port} for user ID {user.id}: {error_output}')
-
-async def listsites_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /listsites command.')
-    if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /listsites by user ID {user.id}.')
-        return
-    try:
-        available_sites = subprocess.check_output(['ls', '/etc/nginx/sites-available']).decode().split()
-        enabled_sites = subprocess.check_output(['ls', '/etc/nginx/sites-enabled']).decode().split()
-        site_status = []
-        for site in available_sites:
-            status = 'Enabled' if site in enabled_sites else 'Disabled'
-            site_status.append(f'{site}: {status}')
-        output = '\n'.join(site_status)
-        await update.message.reply_text(f'Sites:\n{output}')
-        await log_and_notify_admin(update, context, 'Listed sites with status')
-        logger.debug(f'Successfully listed sites with status for user ID {user.id}.')
-    except Exception as e:
-        await update.message.reply_text(f'Error listing sites: {e}')
-        await log_and_notify_admin(update, context, f'Error listing sites: {e}')
-        logger.error(f'Error listing sites for user ID {user.id}: {e}')
-
-async def listensites_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    logger.info(f'User @{user.username} (ID: {user.id}) issued /listensites command.')
-    if not is_manager(user.id):
-        logger.warning(f'Unauthorized access attempt to /listensites by user ID {user.id}.')
-        return
-    try:
-        output = subprocess.check_output(['ls', '/etc/nginx/sites-enabled']).decode()
-        await update.message.reply_text(f'Sites enabled:\n{output}')
-        await log_and_notify_admin(update, context, 'Listed enabled sites')
-        logger.debug(f'Successfully listed enabled sites for user ID {user.id}.')
-    except Exception as e:
-        await update.message.reply_text(f'Error listing enabled sites: {e}')
-        await log_and_notify_admin(update, context, f'Error listing enabled sites: {e}')
-        logger.error(f'Error listing enabled sites for user ID {user.id}: {e}')
+        await update.message.reply_text(f'Error listing VMs: {error_output}')
+        await log_and_notify_admin(update, context, f'Error listing VMs: {error_output}')
+        logger.error(f'Error listing VMs for user ID {user.id}: {error_output}')
 
 async def log_and_notify_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, message: str):
     user = update.effective_user
@@ -324,6 +250,12 @@ def main():
     application.add_handler(CommandHandler('ufw_status', ufw_status_command))
     application.add_handler(CommandHandler('listsites', listsites_command))
     application.add_handler(CommandHandler('listensites', listensites_command))
+
+    # VM Management Commands
+    application.add_handler(CommandHandler('vm_status', vm_status_command))
+    application.add_handler(CommandHandler('vm_start', vm_start_command))
+    application.add_handler(CommandHandler('vm_stop', vm_stop_command))
+    application.add_handler(CommandHandler('list_vms', list_vms_command))
 
     application.run_polling()
 
