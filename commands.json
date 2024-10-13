@@ -1,0 +1,169 @@
+{
+    "ensite": {
+        "description": "Enable an Nginx site",
+        "linux_commands": [
+            {
+                "command": ["nginx_ensite", "{arg}"],
+                "requires_argument": true
+            },
+            {
+                "command": ["systemctl", "reload", "nginx"],
+                "requires_argument": false
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "manager"]
+    },
+    "dissite": {
+        "description": "Disable an Nginx site",
+        "linux_commands": [
+            {
+                "command": ["nginx_dissite", "{arg}"],
+                "requires_argument": true
+            },
+            {
+                "command": ["systemctl", "reload", "nginx"],
+                "requires_argument": false
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "manager"]
+    },
+    "ufw_allow_temp": {
+        "description": "Temporarily allow a port through UFW for 60 seconds",
+        "linux_commands": [
+            {
+                "command": ["ufw", "allow", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "reverse_commands": [
+            {
+                "command": ["ufw", "deny", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "duration": 60,
+        "arguments": true,
+        "roles": ["admin", "network_manager"]
+    },
+    "ufw_deny_temp": {
+        "description": "Temporarily deny a port through UFW for 60 seconds",
+        "linux_commands": [
+            {
+                "command": ["ufw", "deny", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "reverse_commands": [
+            {
+                "command": ["ufw", "allow", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "duration": 60,
+        "arguments": true,
+        "roles": ["admin", "network_manager"]
+    },
+    "ufw_allow": {
+        "description": "Allow a port through UFW",
+        "linux_commands": [
+            {
+                "command": ["ufw", "allow", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "network_manager"]
+    },
+    "ufw_deny": {
+        "description": "Deny a port through UFW",
+        "linux_commands": [
+            {
+                "command": ["ufw", "deny", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "network_manager"]
+    },
+    "ufw_status": {
+        "description": "Show UFW status",
+        "linux_commands": [
+            {
+                "command": ["ufw", "status"],
+                "requires_argument": false
+            }
+        ],
+        "arguments": false,
+        "roles": ["admin", "manager"]
+    },
+    "cpugov": {
+        "description": "Set or get CPU governor settings",
+        "linux_commands": [
+            {
+                "command": ["bash", "-c", "./cpugov.sh", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "manager"]
+    },
+
+    "list_vms": {
+        "description": "List all KVM virtual machines",
+        "linux_commands": [
+            {
+                "command": ["virsh", "list", "--all"],
+                "requires_argument": false
+            }
+        ],
+        "arguments": false,
+        "roles": ["admin", "vm_manager"]
+    },
+    "vm_status": {
+        "description": "Get the status of a virtual machine",
+        "linux_commands": [
+            {
+                "command": ["virsh", "dominfo", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "vm_manager"]
+    },
+    "start_vm": {
+        "description": "Start a KVM virtual machine",
+        "linux_commands": [
+            {
+                "command": ["virsh", "start", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "vm_manager"]
+    },
+    "stop_vm": {
+        "description": "Stop a KVM virtual machine",
+        "linux_commands": [
+            {
+                "command": ["virsh", "shutdown", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "vm_manager"]
+    },
+    "reboot_vm": {
+        "description": "Reboot a KVM virtual machine",
+        "linux_commands": [
+            {
+                "command": ["virsh", "reboot", "{arg}"],
+                "requires_argument": true
+            }
+        ],
+        "arguments": true,
+        "roles": ["admin", "vm_manager"]
+    }
+}
+
